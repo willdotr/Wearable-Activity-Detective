@@ -203,7 +203,7 @@ $("#enable").onclick = async () => {
     });
     $("#prog").hidden = true; $("#status").textContent = "Chat ready."; $("#chatbox").hidden = false; $("#enable").hidden = true;
   } catch (e) {
-    $("#status").textContent = "Chat couldn't load (" + (e.message || e) + "). The rest of the exhibit still works."; $("#prog").hidden = true; $("#enable").disabled = false;
+    $("#status").textContent = "Chat couldn't load (" + (e.message || e) + "). This is usually a network hiccup while downloading the model: click Enable chat to retry, turn off VPN/ad blockers, or try another network. The rest of the exhibit still works."; $("#prog").hidden = true; $("#enable").disabled = false;
   }
 };
 async function ask(q) {
