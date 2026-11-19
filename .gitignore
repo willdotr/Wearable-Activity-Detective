@@ -1,0 +1,10 @@
+# Raw dataset (large; the site only needs site/data)
+UCI HAR Dataset/
+UCI HAR Dataset.names
+__MACOSX/
+.DS_Store
+
+# Backups and Python cruft
+index.pre-matrix.html
+__pycache__/
+*.pyc

@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wearable Activity Detective</title>
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--ink:#1c2430;--mute:#5b6675;--line:#dde2e9;--accent:#2a62d9;--good:#1a8a4a;--bad:#c93a3a;--x:#d9482a;--y:#2a9d5c;--z:#2a62d9}
+@media (prefers-color-scheme:dark){:root{--bg:#12161c;--card:#1b212a;--ink:#e8ecf2;--mute:#9aa6b6;--line:#2c3541;--accent:#6c97f2;--good:#4cc27d;--bad:#ef6b6b;--x:#f0795c;--y:#4cc27d;--z:#6c97f2}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:860px;margin:0 auto;padding:24px 16px 64px}
+h1{margin:.2em 0 .1em;font-size:2rem}h2{margin:0 0 .4em;font-size:1.25rem}
+.sub{color:var(--mute);margin:0 0 20px}
+section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin:16px 0}
+button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 12px;border-radius:8px;cursor:pointer}
+button:hover:not(:disabled){border-color:var(--accent)}button:disabled{opacity:.5;cursor:default}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:12px 0}
+.choices button.right{border-color:var(--good);background:color-mix(in srgb,var(--good) 18%,var(--card))}
+.choices button.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 18%,var(--card))}
+svg.trace{width:100%;height:auto;background:var(--bg);border:1px solid var(--line);border-radius:8px}
+.legend{font-size:.85rem;color:var(--mute)}.legend b{display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 4px 0 10px}
+.result{min-height:3em;margin:8px 0}.score{color:var(--mute);font-size:.95rem}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.cap{font-size:.9rem;margin:4px 0}.cap b{color:var(--accent)}
+table{border-collapse:collapse;font-size:.85rem;width:100%}th,td{border:1px solid var(--line);padding:4px 6px;text-align:center}
+th{background:var(--bg)}.tag{font-size:.8rem;color:var(--mute)}
+.bars div{display:flex;align-items:center;gap:8px;font-size:.85rem}.bars i{display:block;height:8px;background:var(--accent);border-radius:4px}
+#chatlog{max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:8px;margin:10px 0;background:var(--bg)}
+.msg{margin:6px 0;white-space:pre-wrap}.msg.u{color:var(--accent)}.msg.a::before{content:"Jose (bot): ";font-weight:600}.msg.u::before{content:"You: ";font-weight:600}
+progress{width:100%}input[type=text]{font:inherit;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);flex:1}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}
+footer{color:var(--mute);font-size:.85rem}
+</style>
+<style id="matrix-theme">
+:root,:root:root{--bg:#000;--card:rgba(0,12,2,.86);--ink:#b8ffc8;--mute:#4fbf6a;--line:#0f5a22;--accent:#00ff41;--good:#00ff41;--bad:#ff3b3b;--x:#ff3b3b;--y:#00ff41;--z:#3be8ff}
+body{font-family:"Courier New",Consolas,monospace;background:#000}
+#rain{position:fixed;inset:0;width:100%;height:100%;z-index:-1;opacity:.45}
+h1{color:#00ff41;text-shadow:0 0 10px #00ff41;letter-spacing:.05em}
+h2{color:#00ff41;text-shadow:0 0 6px #00ff41}
+section{box-shadow:0 0 14px rgba(0,255,65,.18)}
+button{font-family:inherit;background:rgba(0,20,4,.9)}
+button.primary{background:#00ff41;color:#000;font-weight:700;border-color:#00ff41}
+button:hover:not(:disabled){box-shadow:0 0 8px #00ff41}
+a{color:#3be8ff}
+svg.trace{background:#000}
+select{font:inherit;background:#000;color:var(--ink);border:1px solid var(--line);padding:6px;border-radius:8px}
+input[type=text]{background:#000}
+</style>
+</head>
+<body>
+<canvas id="rain" aria-hidden="true"></canvas>
+<main>
+<h1>Wearable Activity Detective</h1>
+<p class="sub">Can you tell what someone was doing from a phone's accelerometer? A small neural network can, mostly. Find out where you and the model disagree.</p>
+
+<section id="game">
+  <h2>1. Guess the activity</h2>
+  <p class="cap">Each trace is 2.56 seconds from a phone worn on the waist, showing acceleration (in g) along three axes. These are test windows the model never trained on.
+  <span class="legend"><b style="background:var(--x)"></b>x<b style="background:var(--y)"></b>y<b style="background:var(--z)"></b>z</span></p>
+  <div id="gtrace"></div>
+  <div class="choices" id="choices"></div>
+  <div class="result" id="gresult" aria-live="polite">Pick an activity.</div>
+  <div class="row"><button id="next" class="primary" disabled>Next trace</button><span class="score" id="score"></span></div>
+</section>
+
+<section id="mistakes">
+  <h2>2. Why did the model get this wrong?</h2>
+  <p class="cap">Pick a mistake. We show the trace the model misjudged next to a typical (correctly classified) trace for the <b>true</b> activity and for the <b>predicted</b> one. Notice how much they overlap.</p>
+  <div class="row"><select id="mfilter"></select><button id="mshuffle">Another example</button></div>
+  <div id="minfo" class="cap"></div>
+  <div class="grid2" id="mgrid"></div>
+  <p class="cap" id="mnote"></p>
+</section>
+
+<section id="results">
+  <h2>3. Test results</h2>
+  <div id="rsummary"></div>
+  <div style="overflow:auto"><table id="cm"></table></div>
+  <p class="tag">Rows = true activity, columns = model prediction (all 2,947 test windows).</p>
+</section>
+
+<section id="chat">
+  <h2>4. Ask Jose (bot)</h2>
+  <p class="cap">A small language model runs entirely in your browser (needs WebGPU) and answers from a short guide about this project. The first load downloads the model (~1 GB).</p>
+  <div class="row"><button id="enable" class="primary">Enable chat</button></div>
+  <progress id="prog" max="1" value="0" hidden></progress>
+  <div class="tag" id="status"></div>
+  <div id="chatbox" hidden>
+    <div id="chatlog"></div>
+    <div class="row">
+      <button class="q">Where did your data come from?</button>
+      <button class="q">How did your model compare with the baseline?</button>
+      <button class="q">How well did this model work on a dataset you never tested?</button>
+    </div>
+    <form class="row" id="chatform"><input type="text" id="chatin" placeholder="Ask a question..." autocomplete="off"><button class="primary">Send</button></form>
+  </div>
+</section>
+
+<footer>
+Data: <a href="https://archive.ics.uci.edu/dataset/240/human+activity+recognition+using+smartphones">UCI Human Activity Recognition Using Smartphones</a> (Anguita et al., 2013), CC BY 4.0.
+Chat powered by <a href="https://webllm.mlc.ai/">WebLLM</a>.
+</footer>
+</main>
+
+<script type="module">
+const $ = s => document.querySelector(s);
+const [gallery, R] = await Promise.all([
+  fetch("data/gallery.json").then(r => r.json()),
+  fetch("data/results.json").then(r => r.json())
+]);
+const L = R.labels, pct = x => (100 * x).toFixed(1) + "%";
+const pick = a => a[Math.floor(Math.random() * a.length)];
+
+function trace(t, w = 520, h = 150) {
+  const all = t.flat(), lo = Math.min(...all), hi = Math.max(...all), pad = 6;
+  const sy = v => h - pad - (v - lo) / (hi - lo || 1) * (h - 2 * pad), sx = i => i / 127 * (w - 2 * pad) + pad;
+  const cols = ["var(--x)", "var(--y)", "var(--z)"];
+  const lines = t.map((ax, k) => `<polyline fill="none" stroke="${cols[k]}" stroke-width="1.6" points="${ax.map((v, i) => sx(i).toFixed(1) + "," + sy(v).toFixed(1)).join(" ")}"/>`).join("");
+  return `<svg class="trace" viewBox="0 0 ${w} ${h}" role="img" aria-label="Accelerometer trace">${lines}<text x="8" y="14" font-size="10" fill="var(--mute)">${hi.toFixed(1)} g</text><text x="8" y="${h - 4}" font-size="10" fill="var(--mute)">${lo.toFixed(1)} g</text></svg>`;
+}
+
+// ---- Game ----
+let cur, me = 0, model = 0, n = 0, answered = false;
+L.forEach((l, i) => { const b = document.createElement("button"); b.textContent = l; b.onclick = () => guess(i); b.dataset.i = i; $("#choices").append(b); });
+function nextRound() {
+  cur = pick(gallery); answered = false;
+  $("#gtrace").innerHTML = trace(cur.trace);
+  $("#gresult").textContent = "Pick an activity.";
+  document.querySelectorAll("#choices button").forEach(b => { b.className = ""; b.disabled = false; });
+  $("#next").disabled = true;
+}
+function guess(i) {
+  if (answered) return; answered = true; n++;
+  const mOk = cur.pred === cur.true, uOk = i === cur.true;
+  me += uOk; model += mOk;
+  document.querySelectorAll("#choices button").forEach(b => {
+    const k = +b.dataset.i; b.disabled = true;
+    if (k === cur.true) b.classList.add("right"); else if (k === i) b.classList.add("wrong");
+  });
+  $("#gresult").innerHTML = `You said <b>${L[i]}</b> (${uOk ? "correct" : "wrong"}). Truth: <b>${L[cur.true]}</b>. The model said <b>${L[cur.pred]}</b> (${mOk ? "correct" : "wrong"}) with ${pct(cur.probs[cur.pred])} confidence.`;
+  $("#score").textContent = `You ${me}/${n} · Model ${model}/${n} (gallery over-samples mistakes, so the model looks worse here than its true 95% test accuracy)`;
+  $("#next").disabled = false;
+}
+$("#next").onclick = nextRound; nextRound();
+
+// ---- Mistakes ----
+const wrong = gallery.filter(g => g.true !== g.pred);
+const pairs = {};
+wrong.forEach(g => { const k = g.true + ">" + g.pred; pairs[k] = (pairs[k] || 0) + 1; });
+const sel = $("#mfilter");
+sel.innerHTML = '<option value="all">All mistakes</option>' + Object.entries(pairs).sort((a, b) => b[1] - a[1]).map(([k, c]) => {
+  const [t, p] = k.split(">"); return `<option value="${k}">${L[t]} → ${L[p]} (${c})</option>`;
+}).join("");
+function showMistake() {
+  const pool = wrong.filter(g => sel.value === "all" || (g.true + ">" + g.pred) === sel.value);
+  const g = pick(pool);
+  const typical = c => pick(gallery.filter(x => x.true === c && x.pred === c));
+  const a = typical(g.true), b = typical(g.pred);
+  $("#minfo").innerHTML = `The model guessed <b>${L[g.pred]}</b> but the truth was <b>${L[g.true]}</b> (subject ${g.subject}, ${pct(g.probs[g.pred])} confident).`;
+  $("#mgrid").innerHTML = [[g, "Mistaken trace"], [a, "Typical " + L[g.true] + " (true)"], [b, "Typical " + L[g.pred] + " (predicted)"]]
+    .map(([x, t]) => `<div><div class="cap"><b>${t}</b></div>${trace(x.trace, 300, 110)}</div>`).join("");
+  const stat = ["Sitting", "Standing"].includes(L[g.true]) && ["Sitting", "Standing"].includes(L[g.pred]);
+  $("#mnote").textContent = stat
+    ? "Sitting and Standing are both nearly motionless; the only difference is a slight tilt of the phone, which varies with how it sits on each person's belt."
+    : "These movements produce similar rhythmic patterns. A longer window or a gyroscope signal might help separate them; the model only sees one 2.56 s window of summarized features.";
+}
+sel.onchange = showMistake; $("#mshuffle").onclick = showMistake; showMistake();
+
+// ---- Results ----
+$("#rsummary").innerHTML = `<p>The network (561 inputs → ${R.hidden} hidden units → 6 outputs) scored <b>${pct(R.test_acc)}</b> on ${R.n_test} test windows from subjects it never saw. Always guessing the most common training activity (${R.baseline_label}) scores only <b>${pct(R.baseline_acc)}</b>. It made ${R.n_wrong} mistakes.</p>`;
+$("#cm").innerHTML = "<tr><th></th>" + L.map(l => `<th>${l}</th>`).join("") + "</tr>" + R.confusion.map((row, i) =>
+  `<tr><th>${L[i]}</th>${row.map((v, j) => `<td style="${i === j ? "font-weight:700" : v > 10 ? "color:var(--bad);font-weight:700" : "color:var(--mute)"}">${v}</td>`).join("")}</tr>`).join("");
+
+// ---- Chat ----
+const C = R.confusion, sitStand = C[3][4], upWalk = C[1][0];
+const GUIDE = `You are Jose, the friendly guide bot for the "Wearable Activity Detective" exhibit. If asked your name, say you are Jose (bot).
+Answer the visitor's question using the facts in the GUIDE below, in 1-3 short sentences, quoting the numbers from the guide. Most questions about this exhibit (data, model, results, baseline, mistakes, limitations) ARE answered in the guide, so look carefully and answer them.
+Only if the question is truly about something the guide never mentions (for example a different dataset or an untested scenario), say that the guide doesn't cover it, then add what the guide does say about its limitations. Never invent numbers.
+For small talk (greetings, "how are you"), reply in one short friendly sentence without re-introducing yourself, then invite a question about the exhibit.
+
+Example: Q: How accurate is the model? A: It got ${pct(R.test_acc)} on the ${R.n_test} test windows, compared with ${pct(R.baseline_acc)} for the always-guess-${R.baseline_label} baseline.
+
+GUIDE
+Purpose: Shows whether a neural network can tell human activities apart from smartphone accelerometer data, and where it gets confused.
+Data: UCI "Human Activity Recognition Using Smartphones" dataset (Anguita et al., 2013, CC BY 4.0), from the UCI Machine Learning Repository. 30 volunteers wore a waist-mounted Samsung Galaxy S II doing six activities: Walking, Walking Upstairs, Walking Downstairs, Sitting, Standing, Laying. It comes pre-split by person into ${R.n_train} training windows and ${R.n_test} test windows (2.56 seconds each).
+Model inputs: the dataset's 561 ready-made features per window (time and frequency statistics of accelerometer and gyroscope signals), standardized. The traces shown on the site are the raw total acceleration signals, which the model does not see directly.
+Model: small neural network, 561 inputs, one hidden layer of ${R.hidden} ReLU units, 6 outputs, dropout ${R.dropout}, trained with Adam in plain numpy. Hyperparameters were chosen using 5 held-out training subjects (validation accuracy ${pct(R.val_acc)}), then the final model was trained on all training data.
+Test results: ${pct(R.test_acc)} accuracy on the ${R.n_test}-window test set (${R.n_wrong} mistakes). Baseline of always predicting the most frequent training activity (${R.baseline_label}) gets ${pct(R.baseline_acc)}.
+Main mistakes: Sitting predicted as Standing (${sitStand} windows), Walking Upstairs predicted as Walking (${upWalk} windows). Sitting/Standing are nearly motionless and differ only by phone tilt; stair climbing resembles walking.
+Limitations: only 30 volunteers, all wearing the same phone at the waist; the model was tested only on this dataset's test subjects. We did NOT test it on any other dataset, other phones, other body positions or other people, so we don't know how well it generalizes. It is not a medical or safety tool. Test data and the gallery on the site over-sample mistakes.`;
+
+let engine = null, history = [];
+const log = (cls, txt) => { const d = document.createElement("div"); d.className = "msg " + cls; d.textContent = txt; $("#chatlog").append(d); $("#chatlog").scrollTop = 1e9; return d; };
+$("#enable").onclick = async () => {
+  if (!navigator.gpu) { $("#status").textContent = "WebGPU isn't available in this browser/device, so chat is disabled. The rest of the exhibit still works. Try recent Chrome or Edge."; return; }
+  $("#enable").disabled = true; $("#prog").hidden = false; $("#status").textContent = "Loading chat model...";
+  try {
+    const webllm = await import("https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.79/+esm");
+    engine = await webllm.CreateMLCEngine("Qwen2.5-1.5B-Instruct-q4f16_1-MLC", {
+      initProgressCallback: p => { $("#prog").value = p.progress; $("#status").textContent = p.text; }
+    });
+    $("#prog").hidden = true; $("#status").textContent = "Chat ready."; $("#chatbox").hidden = false; $("#enable").hidden = true;
+  } catch (e) {
+    $("#status").textContent = "Chat couldn't load (" + (e.message || e) + "). The rest of the exhibit still works."; $("#prog").hidden = true; $("#enable").disabled = false;
+  }
+};
+async function ask(q) {
+  if (!engine || !q.trim()) return;
+  log("u", q); const out = log("a", "..."); let txt = "";
+  try {
+    const stream = await engine.chat.completions.create({ stream: true, temperature: 0.2, max_tokens: 200,
+      messages: [{ role: "system", content: GUIDE }, { role: "user", content: q }] });
+    for await (const ch of stream) { txt += ch.choices[0]?.delta?.content || ""; out.textContent = txt; }
+  } catch (e) { out.textContent = "Error: " + (e.message || e); }
+}
+$("#chatform").onsubmit = e => { e.preventDefault(); const v = $("#chatin").value; $("#chatin").value = ""; ask(v); };
+document.querySelectorAll(".q").forEach(b => b.onclick = () => ask(b.textContent));
+</script>
+<script id="matrix-rain">
+(()=>{const c=document.getElementById("rain"),x=c.getContext("2d"),f=16,ch="ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉ0123456789";let d=[];
+const size=()=>{c.width=innerWidth;c.height=innerHeight;d=Array.from({length:Math.ceil(c.width/f)},()=>Math.random()*c.height/f)};size();addEventListener("resize",size);
+if(matchMedia("(prefers-reduced-motion: reduce)").matches)return;
+setInterval(()=>{x.fillStyle="rgba(0,0,0,.08)";x.fillRect(0,0,c.width,c.height);x.fillStyle="#00ff41";x.font=f+"px monospace";
+d.forEach((y,i)=>{x.fillText(ch[Math.floor(Math.random()*ch.length)],i*f,y*f);d[i]=y*f>c.height&&Math.random()>.975?0:y+1})},50)})();
+</script>
+</body>
+</html>

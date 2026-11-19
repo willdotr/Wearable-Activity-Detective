@@ -1,0 +1,76 @@
+{
+ "labels": [
+  "Walking",
+  "Walking Upstairs",
+  "Walking Downstairs",
+  "Sitting",
+  "Standing",
+  "Laying"
+ ],
+ "test_acc": 0.9504580929759077,
+ "baseline_acc": 0.18221920597217509,
+ "baseline_label": "Laying",
+ "confusion": [
+  [
+   487,
+   4,
+   5,
+   0,
+   0,
+   0
+  ],
+  [
+   20,
+   445,
+   6,
+   0,
+   0,
+   0
+  ],
+  [
+   4,
+   6,
+   410,
+   0,
+   0,
+   0
+  ],
+  [
+   0,
+   1,
+   0,
+   417,
+   73,
+   0
+  ],
+  [
+   0,
+   0,
+   0,
+   17,
+   515,
+   0
+  ],
+  [
+   0,
+   0,
+   0,
+   0,
+   10,
+   527
+  ]
+ ],
+ "hidden": 32,
+ "dropout": 0.5,
+ "val_acc": 0.9478458049886621,
+ "n_train": 7352,
+ "n_test": 2947,
+ "n_wrong": 146,
+ "val_subjects": [
+  22,
+  15,
+  21,
+  3,
+  16
+ ]
+}
