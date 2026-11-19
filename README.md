@@ -1,4 +1,4 @@
-# 🕵️ Wearable Activity Detective
+# Wearable Activity Detective
 
 **Can a neural network tell walking from climbing stairs using only a phone's accelerometer?**
 Guess the activity from a raw sensor trace, then see what the model thought, and explore where it gets confused.
