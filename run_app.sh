@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Serve the exhibit locally at http://localhost:8000
-cd "$(dirname "$0")/site" || exit 1
+cd "$(dirname "$0")/docs" || exit 1
 
 if command -v py >/dev/null 2>&1; then PY=py
 elif command -v python3 >/dev/null 2>&1; then PY=python3

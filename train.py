@@ -4,7 +4,7 @@ import numpy as np
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 D = os.path.join(ROOT, "UCI HAR Dataset")
-OUT = os.path.join(ROOT, "site", "data")
+OUT = os.path.join(ROOT, "docs", "data")
 os.makedirs(OUT, exist_ok=True)
 rng = np.random.default_rng(42)
 
