@@ -83,7 +83,7 @@ input[type=text]{background:#000}
 
 <section id="chat">
   <h2>4. Ask Jose (bot)</h2>
-  <p class="cap">A small language model runs entirely in your browser (needs WebGPU) and answers from a short guide about this project. The first load downloads the model (~1 GB).</p>
+  <p class="cap">A small language model runs entirely in your browser (needs WebGPU) and answers from a short guide about this project. The first load downloads the model (~280 MB).</p>
   <div class="row"><button id="enable" class="primary">Enable chat</button></div>
   <progress id="prog" max="1" value="0" hidden></progress>
   <div class="tag" id="status"></div>
@@ -200,14 +200,14 @@ $("#enable").onclick = async () => {
     const webllm = await import("https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.79/+esm");
     for (let attempt = 1; ; attempt++) {
       try {
-        const small = attempt >= 3; // after two failures, fall back to a ~280 MB model
+        const small = true; // small ~280 MB model so the download is less likely to stall
         engine = await webllm.CreateMLCEngine(small ? "Qwen2.5-0.5B-Instruct-q4f16_1-MLC" : "Qwen2.5-1.5B-Instruct-q4f16_1-MLC", {
-          initProgressCallback: p => { $("#prog").value = p.progress; $("#status").textContent = (attempt > 1 ? `[retry ${attempt - 1}${small ? ", smaller model" : ""}] ` : "") + p.text; }
+          initProgressCallback: p => { $("#prog").value = p.progress; $("#status").textContent = (attempt > 1 ? `[retry ${attempt - 1}] ` : "") + p.text; }
         });
         break;
       } catch (err) {
         if (attempt >= 4) throw err;
-        $("#status").textContent = attempt >= 2 ? "Download keeps getting interrupted; switching to a smaller model..." : `Download interrupted, retrying (${attempt}/3)...`;
+        $("#status").textContent = `Download interrupted, retrying (${attempt}/3)...`;
         await new Promise(r => setTimeout(r, 1500));
       }
     }
